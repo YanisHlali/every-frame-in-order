@@ -1,0 +1,21 @@
+{
+  "title": "🎬 Frame",
+  "description": "Publie automatiquement toutes les frames de la série Twin Peaks dans l'ordre sur Twitter.",
+  "featuresTitle": "🚀 Fonctionnalités",
+  "feature": [
+    "Scraping de Twitter sans API",
+    "Stockage des frames sur Google Drive",
+    "Planification automatique via Vercel cron",
+    "Gestion des épisodes et tweets via Firestore"
+  ],
+  "techTitle": "🛠 Technologies",
+  "tech": [
+    "Next.js 15 + TypeScript",
+    "Puppeteer Core + Chromium",
+    "Firebase Admin, Google APIs",
+    "Vercel Cron Jobs"
+  ],
+  "quickLinksTitle": "🔗 Accès rapide",
+  "sourceCode": "Voir le code source",
+  "twitterAccount": "Voir le compte Twitter"
+}
