@@ -61,7 +61,7 @@ export default function HomePage() {
         <h2 className="text-2xl font-semibold">{t("quickLinksTitle")}</h2>
         <div className="flex flex-wrap justify-center gap-4">
           <a
-            href="https://github.com/yanishlali/frame"
+            href="https://github.com/YanisHlali/every-frame-in-order"
             target="_blank"
             rel="noopener noreferrer"
           >
