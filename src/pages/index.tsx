@@ -40,6 +40,8 @@ export default function HomePage() {
               <li>{t("feature.1")}</li>
               <li>{t("feature.2")}</li>
               <li>{t("feature.3")}</li>
+              <li>{t("feature.4")}</li>
+              <li>{t("feature.5")}</li>
             </ul>
           </CardContent>
         </Card>
@@ -52,6 +54,10 @@ export default function HomePage() {
               <li>{t("tech.1")}</li>
               <li>{t("tech.2")}</li>
               <li>{t("tech.3")}</li>
+              <li>{t("tech.4")}</li>
+              <li>{t("tech.5")}</li>
+              <li>{t("tech.6")}</li>
+              <li>{t("tech.7")}</li>
             </ul>
           </CardContent>
         </Card>
