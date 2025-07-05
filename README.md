@@ -1,48 +1,62 @@
 # 🎞️ Frame – Every Frame In Order
 
-> 🧪 Démo en ligne : [@TwinPeaksShot](https://x.com/TwinPeaksShot)
+> 🧪 Live demo: [@TwinPeaksShot](https://x.com/TwinPeaksShot)
 
-Ce projet automatise l'extraction, la publication et le suivi de chaque frame d'un épisode vidéo, image par image, sur Twitter. Il est conçu pour être utilisé avec **n'importe quelle série** ou contenu vidéo, en adaptant les métadonnées et le contenu de la base de données. Le répertoire actuel est configuré pour une série spécifique, mais le système est générique.
+This project automates the extraction, posting, and tracking of every single frame from a video episode, frame by frame, on Twitter. It's designed to work with **any series** or video content, by simply adapting the metadata and database contents. The current repository is set up for a specific show, but the system itself is generic.
 
-Il combine Puppeteer, Firebase, Google Drive et l’API de Twitter (via cookies) pour orchestrer l’ensemble du processus.
+It combines Puppeteer, Firebase, Google Drive, and the Twitter API (via cookies) to orchestrate the entire process.
 
-## ⚙️ Fonctionnalités
+## 🛠️ Tech stack
 
-* Extraction des frames d’un épisode vidéo.
-* Upload sur Google Drive avec organisation par épisode.
-* Stockage des métadonnées (frames, timestamps, liens) dans Firebase Firestore.
-* Publication automatique et planifiée des frames sur Twitter via une API custom.
-* Intégration avec Vercel (cron scheduler).
+* **Next.js 15**
+* **TypeScript**
+* **Tailwind CSS**
+* **Firebase Admin SDK**
+* **Google Drive API**
+* **Twitter via Puppeteer + cookies**
+* **Vercel Cron**
+* **Vercel Analytics**
 
 ---
 
-## 🚀 Étapes d’installation & d’utilisation
+## ⚙️ Features
 
-### 1. Récupérer l’épisode
+* Extracts all frames from a video episode.
+* Uploads to Google Drive, organized by episode.
+* Stores metadata (frames, timestamps, links) in Firebase Firestore.
+* Automatically and periodically posts frames to Twitter via a custom API.
+* Integrates with Vercel (cron scheduler).
+* Tracks website analytics with Vercel Analytics.
 
-Télécharge le fichier vidéo de l’épisode à traiter.
+---
 
-### 2. Extraire les frames
+## 🚀 Installation & Usage Steps
 
-Utilise le script `extract_frames.sh` pour extraire chaque image de l’épisode en format `.jpg` ou `.png`.
+### 1. Obtain the episode
+
+Download the video file of the episode you want to process.
+
+### 2. Extract frames
+
+Use the `extract_frames.sh` script to extract every image from the episode in `.jpg` or `.png` format.
 
 ```bash
 bash extract_frames.sh path/to/episode.mp4
 ```
 
-> 💡 Chaque image doit être nommée dans un format cohérent (ex: `frame_000001.jpg`).
+> 💡 Each image should be named in a consistent format (e.g. `frame_000001.jpg`).
 
-### 3. Upload vers Google Drive
+### 3. Upload to Google Drive
 
-Les images doivent être uploadées sur un dossier Google Drive spécifique au projet. Le script utilise l’API Google Drive pour gérer les uploads et récupérer les URLs publiques.
+Images must be uploaded to a dedicated Google Drive folder for the project. The script uses the Google Drive API to handle uploads and fetch public URLs.
 
-#### 🗃️ Schéma d'organisation des frames sur Drive
+#### 🗃️ Frame organization schema on Drive
 
 ```
 Drive root
 └── Twin Peaks
-    └── Twin_Peaks_S01E01                      # Dossier principal de l’épisode
-        ├── Twin_Peaks_S01_E01_1               # Dossier découpé contenant 100 frames
+    └── Twin_Peaks_S01E01                      # Main folder for the episode
+        ├── Twin_Peaks_S01_E01_1               # Subfolder with 100 frames
         │   ├── frame_0001.png
         │   └── ...
         └── Twin_Peaks_S01_E01_2
@@ -50,21 +64,21 @@ Drive root
             └── ...
 ```
 
-> 📂 Chaque sous-dossier correspond à un `folderId` référencé dans Firestore.
+> 📂 Each subfolder matches a `folderId` referenced in Firestore.
 
-### 4. Configurer Firebase
+### 4. Configure Firebase
 
-Crée une base de données Firestore sur [Firebase Console](https://console.firebase.google.com/), puis :
+Create a Firestore database in the [Firebase Console](https://console.firebase.google.com/), then:
 
-* Crée une collection `series` contenant les données.
-* Fournis un **Service Account JSON** encodé en base64.
+* Create a `series` collection to hold your data.
+* Provide a **Service Account JSON** encoded in base64.
 
-#### 📁 Schéma de la base Firestore
+#### 📁 Firestore database schema
 
 ```
 series (collection)
 ├── [series-id] (document)
-    ├── title: string                     # Titre de la série
+    ├── title: string                     # Show title
     ├── metadata: { totalSeasons: number }
     ├── current: { seasonId: string, episodeId: string }
     └── seasons: {
@@ -72,7 +86,7 @@ series (collection)
            episodes: {
              [episode-id]: {
                episodeNumber: number,
-               folderIds: string[],     # Dossiers Drive contenant les frames
+               folderIds: string[],     # Drive folders with the frames
                totalFiles: number,
                indexFolder: number,
                lastIndex: number
@@ -82,11 +96,11 @@ series (collection)
        }
 ```
 
-> 🔹 Le champ `current` permet de suivre l'épisode en cours de publication.
+> 🔹 The `current` field tracks the currently publishing episode.
 
-### 5. Remplir le fichier `.env`
+### 5. Fill in the `.env` file
 
-Crée un fichier `.env` à la racine du projet avec les variables suivantes :
+Create a `.env` file at the root of the project with the following variables:
 
 ```env
 CRON_SECRET=...
@@ -96,28 +110,28 @@ COOKIES_BASE64=...
 SERIES_ID=your-series-id
 ```
 
-* `CRON_SECRET` : secret partagé pour sécuriser les requêtes cron.
-* `GOOGLE_APPLICATION_CREDENTIALS_BASE64` : identifiants d’accès à l’API Google Drive.
-* `FIREBASE_SERVICE_ACCOUNT_BASE64` : compte de service Firebase encodé.
-* `COOKIES_BASE64` : cookies Twitter exportés au format base64.
-* `SERIES_ID` : ID du document `series` dans Firestore.
+* `CRON_SECRET`: Shared secret to secure cron requests.
+* `GOOGLE_APPLICATION_CREDENTIALS_BASE64`: Credentials for Google Drive API access.
+* `FIREBASE_SERVICE_ACCOUNT_BASE64`: Encoded Firebase service account.
+* `COOKIES_BASE64`: Exported Twitter cookies, base64-encoded.
+* `SERIES_ID`: The `series` document ID in Firestore.
 
-> ℹ️ Tu peux utiliser :
+> ℹ️ You can use:
 
 ```bash
-npm run cookies              # Génère cookies.b64 depuis cookies.json
-npm run put-cookies-in-env  # Met à jour automatiquement COOKIES_BASE64 dans le .env
+npm run cookies              # Generates cookies.b64 from cookies.json
+npm run put-cookies-in-env   # Automatically updates COOKIES_BASE64 in .env
 ```
 
-### 6. Déploiement
+### 6. Deployment
 
-Déploie le projet sur Vercel :
+Deploy the project on Vercel:
 
 ```bash
 vercel deploy
 ```
 
-Le fichier `vercel.json` configure un cron pour publier une image toutes les 10 minutes :
+The `vercel.json` file sets up a cron job to post an image every 10 minutes:
 
 ```json
 "crons": [
@@ -130,38 +144,26 @@ Le fichier `vercel.json` configure un cron pour publier une image toutes les 10 
 
 ---
 
-## 🗓️ Scripts utiles
+## 🗓️ Useful scripts
 
 ```bash
-npm run dev                   # Démarre Next.js en local
-npm run build                 # Build de production
-npm run clone-database        # Clone un document Firestore en test
-npm run cookies               # Convertit cookies.json en base64
-npm run put-cookies-in-env    # Injecte dans .env automatiquement
+npm run dev                   # Starts Next.js locally
+npm run build                 # Production build
+npm run clone-database        # Clones a Firestore document for testing
+npm run cookies               # Converts cookies.json to base64
+npm run put-cookies-in-env    # Auto-injects into .env
 ```
 
 ---
 
-## 📁 Structure du projet
+## 📁 Project structure
 
 ```
 src/
-├── config/           # Configs Firebase & Google
-├── lib/              # Clients Twitter
-├── pages/api/        # Route /api/tweet
-├── scheduler/        # Entrée Vercel cron
-├── services/         # Logique metier (drive, firestore, tweets)
-├── utils/            # Scripts manuels (export, cookies)
+├── config/           # Firebase & Google configs
+├── lib/              # Twitter clients
+├── pages/api/        # /api/tweet route
+├── scheduler/        # Vercel cron entry
+├── services/         # Business logic (drive, firestore, tweets)
+├── utils/            # Manual scripts (export, cookies)
 ```
-
----
-
-## 🛠️ Stack technique
-
-* **Next.js 15**
-* **TypeScript**
-* **Tailwind CSS**
-* **Firebase Admin SDK**
-* **Google Drive API**
-* **Twitter via Puppeteer + cookies**
-* **Vercel Cron**
