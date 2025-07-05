@@ -3,17 +3,23 @@
   "description": "Publie automatiquement toutes les frames de la série Twin Peaks dans l'ordre sur Twitter.",
   "featuresTitle": "🚀 Fonctionnalités",
   "feature": [
-    "Scraping de Twitter sans API",
-    "Stockage des frames sur Google Drive",
-    "Planification automatique via Vercel cron",
-    "Gestion des épisodes et tweets via Firestore"
+    "Extrait toutes les images d'un épisode",
+    "Téléchargement sur Google Drive, organisé par épisode",
+    "Stocke les métadonnées (images, horodatage, liens) dans Firebase Firestore",
+    "Publie automatiquement et périodiquement les images sur Twitter via une API personnalisée",
+    "S'intègre à Vercel (planificateur cron)",
+    "Suivi de l'analyse du site web avec Vercel Analytics"
   ],
   "techTitle": "🛠 Technologies",
   "tech": [
-    "Next.js 15 + TypeScript",
-    "Puppeteer Core + Chromium",
-    "Firebase Admin, Google APIs",
-    "Vercel Cron Jobs"
+    "Next.js 15",
+    "TypeScript",
+    "Tailwind CSS",
+    "Firebase Admin SDK",
+    "Google Drive API",
+    "Twitter via Puppeteer + cookies",
+    "Vercel Cron",
+    "Vercel Analytics"
   ],
   "quickLinksTitle": "🔗 Accès rapide",
   "sourceCode": "Voir le code source",
