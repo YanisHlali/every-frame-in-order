@@ -176,16 +176,7 @@ npm run deploy:server         # Serveur Express
 npm run deploy:scheduler      # Scheduler de tweets
 ```
 
-Le fichier `vercel.json` configure un cron pour publier une image toutes les 10 minutes :
-
-```json
-"crons": [
-  {
-    "path": "/api/tweet", 
-    "schedule": "*/10 * * * *"
-  }
-]
-```
+La publication est désormais gérée via des schedulers externes ou des déploiements VPS avec PM2.
 
 ---
 
@@ -249,7 +240,7 @@ src/
 │   ├── api/         # Routes API (tweet, frames, proxy, etc.)
 │   ├── index.tsx    # Page d'accueil multilingue
 │   └── twin-peaks.tsx # Page principale de visualisation
-├── scheduler/        # Entrée Vercel cron
+├── scheduler/        # Scripts de planification
 ├── services/         # Logique métier (drive, firestore, tweets, episodes)
 └── utils/            # Scripts manuels (export, cookies)
 
@@ -290,7 +281,7 @@ public/locales/      # Fichiers de traduction i18next
 * **Cron** - Planification des tâches
 
 ### 🚀 Déploiement & Infrastructure
-* **Vercel** - Hébergement et cron jobs
+* **Vercel** - Hébergement web
 * **PM2** - Gestionnaire de processus pour VPS
 * **Express** - Serveur HTTP pour déploiement VPS
 * **Axios** - Client HTTP

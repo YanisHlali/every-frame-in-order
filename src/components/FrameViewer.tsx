@@ -76,7 +76,7 @@ export default function FrameViewer({
     preloadImages.forEach((frame) => {
       if (!loadedImages.has(frame.id) && typeof window !== "undefined") {
         const img = new window.Image();
-        img.src = frame.url;
+        img.src = `/api/image-proxy?url=${encodeURIComponent(frame.url)}`;
         img.onload = () => {
           setLoadedImages((prev) => new Set(prev).add(frame.id));
         };
@@ -155,7 +155,7 @@ export default function FrameViewer({
                   {!imageErrors.has(currentFrame.id) ? (
                     <>
                       <Image
-                        src={currentFrame.url}
+                        src={`/api/image-proxy?url=${encodeURIComponent(currentFrame.url)}`}
                         alt={`Frame ${currentFrame.frameNumber}`}
                         className={`w-full h-full object-contain transition-all duration-500 hover:brightness-105 ${
                           isZoomed

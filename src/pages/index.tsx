@@ -31,7 +31,7 @@ export default function HomePage() {
             <ul className="list-disc list-inside">
               <li>Twitter scraping without API</li>
               <li>Frame storage on Google Drive</li>
-              <li>Automated scheduling via Vercel cron</li>
+              <li>PM2 automated scheduling</li>
               <li>Episode and tweet management with Firestore</li>
             </ul>
           </CardContent>
@@ -44,7 +44,7 @@ export default function HomePage() {
               <li>Next.js 15 + TypeScript</li>
               <li>Puppeteer Core + Chromium</li>
               <li>Firebase Admin, Google APIs</li>
-              <li>Vercel Cron Jobs</li>
+              <li>PM2 Process Management</li>
             </ul>
           </CardContent>
         </Card>
