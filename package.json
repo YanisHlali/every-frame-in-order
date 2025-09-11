@@ -6,11 +6,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint",
-    "cookies": "node ./src/utils/convert-cookies.js",
-    "clone-database": "node src/utils/clone.js",
-    "export-database": "node src/utils/exportFirestoreDoc.js",
-    "put-cookies-in-env": "node ./src/utils/put-cookies-in-env.js"
+    "lint": "next lint"
   },
   "dependencies": {
     "@sparticuz/chromium": "^119.0.2",

@@ -1,5 +1,4 @@
 import { cn } from "../../lib/utils";
-import { ReactNode } from "react";
 
 export function Card({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
   return (

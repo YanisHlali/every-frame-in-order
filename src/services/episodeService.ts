@@ -1,98 +1,106 @@
 import "dotenv/config";
-import { firestore } from "@/config/firebase";
+import { getFirestore } from "../lib/firebase";
 
-const SERIES_ID = process.env.SERIES_ID;
+const CONTENT_ID = process.env.CONTENT_ID;
 
 export async function nextEpisode(): Promise<void> {
-  if (!SERIES_ID) {
-    throw new Error("❌ La variable d'environnement SERIES_ID est manquante.");
+  if (!CONTENT_ID) {
+    throw new Error("Missing CONTENT_ID environment variable.");
   }
-  const seriesRef = firestore.collection("series").doc(SERIES_ID);
-  const seriesDoc = await seriesRef.get();
+  
+  const firestore = getFirestore();
+  const contentRef = firestore.collection("content").doc(CONTENT_ID);
+  const contentDoc = await contentRef.get();
 
-  if (!seriesDoc.exists) throw new Error("📛 Document série introuvable");
+  if (!contentDoc.exists) throw new Error("Content document not found");
 
-  const current = seriesDoc.data()?.current;
-  const seasonId = current?.seasonId;
-  const episodeId = current?.episodeId;
-
-  const episodesRef = seriesRef
-    .collection("seasons")
-    .doc(seasonId)
-    .collection("episodes");
-  const allEpisodes = await episodesRef.listDocuments();
-  const currentIndex = allEpisodes.findIndex((d) => d.id === episodeId);
-
-  if (currentIndex === -1) {
-    throw new Error("❌ Épisode courant non trouvé.");
+  const contentData = contentDoc.data()!;
+  const currentSeasonKey = contentData.order[contentData.current];
+  const currentSeason = contentData.items[currentSeasonKey];
+  
+  if (!currentSeason || !currentSeason.episodes || !currentSeason.current) {
+    throw new Error("Current season or episode not found.");
   }
 
-  if (currentIndex + 1 >= allEpisodes.length) {
+  const episodeIds = Object.keys(currentSeason.episodes).sort((a, b) => {
+    const episodeA = currentSeason.episodes![a].episodeNumber;
+    const episodeB = currentSeason.episodes![b].episodeNumber;
+    return episodeA - episodeB;
+  });
+  
+  const currentEpisodeIndex = episodeIds.indexOf(currentSeason.current.episodeId);
+  
+  if (currentEpisodeIndex === -1) {
+    throw new Error("Current episode not found.");
+  }
+
+  if (currentEpisodeIndex + 1 >= episodeIds.length) {
     console.log(
-      "✅ Tous les épisodes sont terminés. Passage à la saison suivante."
+      "All episodes are completed. Moving to the next season."
     );
     return await nextSeason();
   }
 
-  const nextEpisodeRef = allEpisodes[currentIndex + 1];
-  const nextEpisodeId = nextEpisodeRef.id;
+  const nextEpisodeId = episodeIds[currentEpisodeIndex + 1];
+  const currentSeasonPath = `items.${currentSeasonKey}.current.episodeId`;
+  const nextEpisodeLastIndexPath = `items.${currentSeasonKey}.episodes.${nextEpisodeId}.lastIndex`;
+  const nextEpisodeIndexFolderPath = `items.${currentSeasonKey}.episodes.${nextEpisodeId}.indexFolder`;
 
-  await seriesRef.update({
-    "current.episodeId": nextEpisodeId,
+  await contentRef.update({
+    [currentSeasonPath]: nextEpisodeId,
+    [nextEpisodeLastIndexPath]: 0,
+    [nextEpisodeIndexFolderPath]: 0,
   });
 
-  await nextEpisodeRef.update({
-    lastIndex: 0,
-    indexFolder: 0,
-  });
-
-  console.log("🎞️ Passage à l’épisode suivant");
+  console.log("Moving to the next episode");
 }
 
 export async function nextSeason(): Promise<void> {
-  if (!SERIES_ID) {
-    throw new Error("❌ La variable d'environnement SERIES_ID est manquante.");
+  if (!CONTENT_ID) {
+    throw new Error("Missing CONTENT_ID environment variable.");
   }
-  const seriesRef = firestore.collection("series").doc(SERIES_ID);
-  const seriesDoc = await seriesRef.get();
-  if (!seriesDoc.exists) throw new Error("📛 Document série introuvable");
+  
+  const firestore = getFirestore();
+  const contentRef = firestore.collection("content").doc(CONTENT_ID);
+  const contentDoc = await contentRef.get();
+  if (!contentDoc.exists) throw new Error("Content document not found");
 
-  const current = seriesDoc.data()?.current;
-  const seasonId = current?.seasonId;
+  const contentData = contentDoc.data()!;
+  const currentSeasonIndex = contentData.current;
 
-  const seasonsRef = seriesRef.collection("seasons");
-  const allSeasons = await seasonsRef.listDocuments();
-  const currentSeasonIndex = allSeasons.findIndex((d) => d.id === seasonId);
-
-  if (currentSeasonIndex === -1) {
-    throw new Error("❌ Saison courante non trouvée.");
-  }
-
-  if (currentSeasonIndex + 1 >= allSeasons.length) {
-    console.log("✅ Toutes les saisons sont terminées.");
+  if (currentSeasonIndex + 1 >= contentData.order.length) {
+    console.log("All seasons are completed.");
     return;
   }
 
-  const nextSeasonRef = allSeasons[currentSeasonIndex + 1];
-  const nextSeasonId = nextSeasonRef.id;
-
-  const episodesRef = nextSeasonRef.collection("episodes");
-  const episodes = await episodesRef.listDocuments();
-  if (episodes.length === 0) {
-    throw new Error("❌ Aucune épisode trouvée dans la saison suivante.");
+  const nextSeasonKey = contentData.order[currentSeasonIndex + 1];
+  const nextSeason = contentData.items[nextSeasonKey];
+  
+  if (!nextSeason || !nextSeason.episodes) {
+    throw new Error("Next season not found or has no episodes.");
   }
 
-  const firstEpisodeRef = episodes[0];
+  const episodeIds = Object.keys(nextSeason.episodes).sort((a, b) => {
+    const episodeA = nextSeason.episodes![a].episodeNumber;
+    const episodeB = nextSeason.episodes![b].episodeNumber;
+    return episodeA - episodeB;
+  });
+  
+  if (episodeIds.length === 0) {
+    throw new Error("No episodes found in the next season.");
+  }
 
-  await seriesRef.update({
-    "current.seasonId": nextSeasonId,
-    "current.episodeId": firstEpisodeRef.id,
+  const firstEpisodeId = episodeIds[0];
+  const nextSeasonCurrentPath = `items.${nextSeasonKey}.current.episodeId`;
+  const firstEpisodeLastIndexPath = `items.${nextSeasonKey}.episodes.${firstEpisodeId}.lastIndex`;
+  const firstEpisodeIndexFolderPath = `items.${nextSeasonKey}.episodes.${firstEpisodeId}.indexFolder`;
+
+  await contentRef.update({
+    current: currentSeasonIndex + 1,
+    [nextSeasonCurrentPath]: firstEpisodeId,
+    [firstEpisodeLastIndexPath]: 0,
+    [firstEpisodeIndexFolderPath]: 0,
   });
 
-  await firstEpisodeRef.update({
-    lastIndex: 0,
-    indexFolder: 0,
-  });
-
-  console.log(`🎬 Passage à la saison suivante : ${nextSeasonId}`);
+  console.log(`🎬 Moving to the next season: ${nextSeasonKey}`);
 }

@@ -1,8 +1,8 @@
 import fs from "fs";
 import path from "path";
 import axios from "axios";
-import { driveService } from "@/config/googleDrive";
-import { getFolderIds, getIndexFolder, getLastIndex } from "./firestoreService";
+import { initializeGoogleDrive } from "../lib/drive";
+import { getFolderIds, getIndexFolder, getLastIndex } from "./contentDetector";
 
 export async function downloadImage(
   fileId: string,
@@ -23,7 +23,7 @@ export async function downloadImage(
     fs.writeFileSync(filePath, Buffer.from(response.data));
     return filePath;
   } catch (error) {
-    console.error("❌ Échec du téléchargement :", error);
+    console.error("Download failed:", error);
     return null;
   }
 }
@@ -34,7 +34,7 @@ export async function getFolderId(): Promise<string> {
   const folderId = folderIds[indexFolder];
 
   if (!folderId) {
-    throw new Error(`❌ Aucun dossier trouvé à l'index ${indexFolder}`);
+    throw new Error(`No folder found at index ${indexFolder}`);
   }
 
   return folderId;
@@ -50,7 +50,7 @@ export async function getNextFrameFile(): Promise<{
   const lastIndex = await getLastIndex();
 
   if (!folderId) {
-    throw new Error(`❌ Aucun dossier trouvé à l'index ${indexFolder}`);
+    throw new Error(`No folder found at index ${indexFolder}`);
   }
 
   const absoluteFrameIndex = indexFolder * 100 + lastIndex + 1;
@@ -58,10 +58,11 @@ export async function getNextFrameFile(): Promise<{
   const filename = `frame_${paddedFrame}.png`;
 
   console.log(
-    `🔍 Recherche du fichier ${filename} dans le dossier ${folderId}`
+    `Searching for file ${filename} in folder ${folderId}`
   );
 
-  const res = await driveService.files.list({
+  const drive = initializeGoogleDrive();
+  const res = await drive.files.list({
     q: `'${folderId}' in parents and name='${filename}' and trashed=false`,
     fields: "files(id, name)",
     pageSize: 1,
@@ -70,7 +71,7 @@ export async function getNextFrameFile(): Promise<{
   const file = res.data.files?.[0];
 
   if (!file?.id || !file?.name) {
-    throw new Error(`❌ Fichier ${filename} introuvable.`);
+    throw new Error(`File ${filename} not found.`);
   }
 
   return { id: file.id, name: file.name };

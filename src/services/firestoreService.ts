@@ -1,10 +1,10 @@
 import "dotenv/config";
-import { firestore } from "@/config/firebase";
+import { getFirestore } from "../lib/firebase";
 import admin from "firebase-admin";
 
 const FieldValue = admin.firestore.FieldValue;
 
-const SERIES_ID = process.env.SERIES_ID;
+const CONTENT_ID = process.env.CONTENT_ID;
 
 export interface EpisodeData {
   episodeNumber: number;
@@ -14,37 +14,57 @@ export interface EpisodeData {
   indexFolder: number;
 }
 
-export async function getSeriesDoc() {
-  if (!SERIES_ID) {
-    throw new Error("❌ La variable d'environnement SERIES_ID est requise.");
+export async function getContentDoc() {
+  if (!CONTENT_ID) {
+    throw new Error("CONTENT_ID environment variable is required.");
   }
 
-  const doc = await firestore.collection("series").doc(SERIES_ID).get();
+  const firestore = getFirestore();
+  const doc = await firestore.collection("content").doc(CONTENT_ID).get();
   return doc.data() as {
-    current: {
-      seasonId: string;
-      episodeId: string;
+    title: string;
+    current: number;
+    order: string[];
+    items: {
+      [key: string]: {
+        type: string;
+        title: string;
+        seasonNumber?: number;
+        year?: number;
+        current?: {
+          episodeId: string;
+        };
+        episodes?: {
+          [episodeId: string]: EpisodeData;
+        };
+        folderIds?: string[];
+        totalFiles?: number;
+        lastIndex?: number;
+        indexFolder?: number;
+      };
     };
   };
 }
 
 export async function getCurrentEpisodeDoc(): Promise<EpisodeData> {
-  if (!SERIES_ID) {
-    throw new Error("❌ La variable d'environnement SERIES_ID est requise.");
+  if (!CONTENT_ID) {
+    throw new Error("CONTENT_ID environment variable is required.");
   }
 
-  const { current } = await getSeriesDoc();
-
-  const doc = await firestore
-    .collection("series")
-    .doc(SERIES_ID)
-    .collection("seasons")
-    .doc(current.seasonId)
-    .collection("episodes")
-    .doc(current.episodeId)
-    .get();
-
-  return doc.data() as EpisodeData;
+  const contentDoc = await getContentDoc();
+  const currentSeasonKey = contentDoc.order[contentDoc.current];
+  const currentSeason = contentDoc.items[currentSeasonKey];
+  
+  if (!currentSeason || !currentSeason.current || !currentSeason.episodes) {
+    throw new Error("Current season or episode not found");
+  }
+  
+  const currentEpisode = currentSeason.episodes[currentSeason.current.episodeId];
+  if (!currentEpisode) {
+    throw new Error("Current episode not found");
+  }
+  
+  return currentEpisode;
 }
 
 export async function getIndexFolder(): Promise<number> {
@@ -70,61 +90,69 @@ export async function getFolderIds(): Promise<string[]> {
 export async function getFolderId(): Promise<string> {
   const ep = await getCurrentEpisodeDoc();
   const folderId = ep.folderIds?.[ep.indexFolder];
-  if (!folderId) throw new Error("❌ Aucun dossier Drive disponible.");
+  if (!folderId) throw new Error("No Drive folder available.");
   return folderId;
 }
 
 export async function nextLastIndex(): Promise<void> {
-  if (!SERIES_ID) {
-    throw new Error("❌ La variable d'environnement SERIES_ID est requise.");
+  if (!CONTENT_ID) {
+    throw new Error("CONTENT_ID environment variable is required.");
   }
 
-  const { current } = await getSeriesDoc();
-  const ref = firestore
-    .collection("series")
-    .doc(SERIES_ID)
-    .collection("seasons")
-    .doc(current.seasonId)
-    .collection("episodes")
-    .doc(current.episodeId);
+  const contentDoc = await getContentDoc();
+  const currentSeasonKey = contentDoc.order[contentDoc.current];
+  const currentSeason = contentDoc.items[currentSeasonKey];
+  
+  if (!currentSeason || !currentSeason.current) {
+    throw new Error("Current season or episode not found");
+  }
 
-  await ref.update({
-    lastIndex: FieldValue.increment(1),
+  const updatePath = `items.${currentSeasonKey}.episodes.${currentSeason.current.episodeId}.lastIndex`;
+  
+  const firestore = getFirestore();
+  await firestore.collection("content").doc(CONTENT_ID).update({
+    [updatePath]: FieldValue.increment(1),
   });
 }
 
 export async function resetLastIndex(): Promise<void> {
-  if (!SERIES_ID) {
-    throw new Error("❌ La variable d'environnement SERIES_ID est requise.");
+  if (!CONTENT_ID) {
+    throw new Error("CONTENT_ID environment variable is required.");
   }
 
-  const { current } = await getSeriesDoc();
-  const ref = firestore
-    .collection("series")
-    .doc(SERIES_ID)
-    .collection("seasons")
-    .doc(current.seasonId)
-    .collection("episodes")
-    .doc(current.episodeId);
+  const contentDoc = await getContentDoc();
+  const currentSeasonKey = contentDoc.order[contentDoc.current];
+  const currentSeason = contentDoc.items[currentSeasonKey];
+  
+  if (!currentSeason || !currentSeason.current) {
+    throw new Error("Current season or episode not found");
+  }
 
-  await ref.update({ lastIndex: 0 });
+  const updatePath = `items.${currentSeasonKey}.episodes.${currentSeason.current.episodeId}.lastIndex`;
+  
+  const firestore = getFirestore();
+  await firestore.collection("content").doc(CONTENT_ID).update({
+    [updatePath]: 0,
+  });
 }
 
 export async function nextIndexFolder(): Promise<void> {
-  if (!SERIES_ID) {
-    throw new Error("❌ La variable d'environnement SERIES_ID est requise.");
+  if (!CONTENT_ID) {
+    throw new Error("CONTENT_ID environment variable is required.");
   }
 
-  const { current } = await getSeriesDoc();
-  const ref = firestore
-    .collection("series")
-    .doc(SERIES_ID)
-    .collection("seasons")
-    .doc(current.seasonId)
-    .collection("episodes")
-    .doc(current.episodeId);
+  const contentDoc = await getContentDoc();
+  const currentSeasonKey = contentDoc.order[contentDoc.current];
+  const currentSeason = contentDoc.items[currentSeasonKey];
+  
+  if (!currentSeason || !currentSeason.current) {
+    throw new Error("Current season or episode not found");
+  }
 
-  await ref.update({
-    indexFolder: FieldValue.increment(1),
+  const updatePath = `items.${currentSeasonKey}.episodes.${currentSeason.current.episodeId}.indexFolder`;
+  
+  const firestore = getFirestore();
+  await firestore.collection("content").doc(CONTENT_ID).update({
+    [updatePath]: FieldValue.increment(1),
   });
 }

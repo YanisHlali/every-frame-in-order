@@ -15,7 +15,7 @@ export default async function handler(
       .sort((a, b) => b.localeCompare(a));
 
     if (dumps.length === 0) {
-      return res.status(404).json({ error: 'Aucun dump HTML trouvé.' });
+      return res.status(404).json({ error: 'No HTML dump found.' });
     }
 
     const lastDumpPath = path.join(tmpDir, dumps[0]);
@@ -25,6 +25,6 @@ export default async function handler(
     res.setHeader('Cache-Control', 'no-store');
     res.status(200).send(html);
   } catch (e) {
-    res.status(500).json({ error: 'Erreur lors de la lecture du dump HTML.' });
+    res.status(500).json({ error: 'Error reading HTML dump.' });
   }
 }

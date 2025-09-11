@@ -1,9 +1,16 @@
-import nextI18NextConfig from './next-i18next.config.js';
-
 /** @type {import('next').NextConfig} */
 const config = {
-  ...nextI18NextConfig,
   reactStrictMode: true,
+  images: {
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'lh3.googleusercontent.com',
+        port: '',
+        pathname: '/d/**',
+      },
+    ],
+  },
 };
 
 export default config;

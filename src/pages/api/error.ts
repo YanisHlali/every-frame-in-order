@@ -14,6 +14,6 @@ export default async function handler(
     res.setHeader('Cache-Control', 'no-store');
     res.status(200).send(imageBuffer);
   } catch (e) {
-    res.status(404).json({ error: 'Aucun screenshot trouvé.' });
+    res.status(404).json({ error: 'No screenshots found.' });
   }
 }
