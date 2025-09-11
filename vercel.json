@@ -5,11 +5,5 @@
       "src": "package.json",
       "use": "@vercel/next"
     }
-  ],
-  "crons": [
-    {
-      "path": "/api/tweet",
-      "schedule": "*/10 * * * *"
-    }
   ]
 }
