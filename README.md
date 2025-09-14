@@ -1,4 +1,4 @@
-# 🎞️ Frame – Every Frame In Order
+# 🎞️ Every Frame In Order
 
 > 🧪 Démo en ligne : [@TwinPeaksShot](https://x.com/TwinPeaksShot)
 
