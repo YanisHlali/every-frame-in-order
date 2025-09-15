@@ -72,7 +72,10 @@ export default function TwinPeaksPage({
     );
   }
 
-  const seasons = Object.entries(contentData.items);
+  const seasons: [string, typeof contentData.items[string]][] = contentData.order
+    .map((seasonId: string) => [seasonId, contentData.items[seasonId]] as [string, typeof contentData.items[string]])
+    .filter(([season]) => !!season);
+
   const selectedSeasonData = selectedSeason
     ? contentData.items[selectedSeason]
     : null;
@@ -133,12 +136,22 @@ export default function TwinPeaksPage({
                 onChange={(e) => handleFilterChange(e.target.value, "")}
                 className="px-3 py-1.5 border border-gray-300 dark:border-zinc-600 rounded-lg bg-white dark:bg-zinc-700 text-zinc-900 dark:text-zinc-100 text-sm focus:ring-2 focus:ring-blue-500"
               >
-                <option value="">All seasons</option>
-                {seasons.map(([seasonId]) => (
-                  <option key={seasonId} value={seasonId}>
-                    {seasonId.replace("season-", "Season ")}
-                  </option>
-                ))}
+                {seasons.length === 0 && (
+                  <option value="">All seasons</option>
+                )}
+                {seasons.length > 0 && seasons.map(([seasonId, seasonData]) => {
+                  let label: string;
+                  if (seasonId.startsWith("season-")) {
+                    label = (seasonId as string).replace("season-", "Season ");
+                  } else {
+                    label = (seasonData && seasonData.title) ? seasonData.title : seasonId;
+                  }
+                  return (
+                    <option key={seasonId as string} value={seasonId as string}>
+                      {label}
+                    </option>
+                  );
+                })}
               </select>
             </div>
 
@@ -155,10 +168,12 @@ export default function TwinPeaksPage({
                   disabled={!hasEpisodesInSeason}
                   className="px-3 py-1.5 border border-gray-300 dark:border-zinc-600 rounded-lg bg-white dark:bg-zinc-700 text-zinc-900 dark:text-zinc-100 text-sm focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  <option value="">
-                    {hasEpisodesInSeason ? "All episodes" : "No episodes available"}
-                  </option>
-                  {episodes.map(([episodeId, episode]) => (
+                  {episodes.length === 0 && (
+                    <option value="">
+                      {hasEpisodesInSeason ? "All episodes" : "No episodes available"}
+                    </option>
+                  )}
+                  {episodes.length > 0 && episodes.map(([episodeId, episode]) => (
                     <option key={episodeId} value={episodeId}>
                       Episode{" "}
                       {episode.episodeNumber ||
