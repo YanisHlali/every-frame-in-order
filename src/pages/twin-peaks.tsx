@@ -5,6 +5,7 @@ import { Button } from "../components/ui/button";
 import { ThemeToggle } from "../components/ThemeToggle";
 import FrameViewer from "../components/FrameViewer";
 import { useFrames } from "../hooks/useFrames";
+import LoadingSpinner from "../components/LoadingSpinner";
 import { ContentData } from "../types";
 
 interface TwinPeaksPageProps {
@@ -12,13 +13,27 @@ interface TwinPeaksPageProps {
   error?: string;
 }
 
+function getEpisodeLimitsFromContent(contentData: ContentData | null) {
+  if (!contentData) return {};
+  const limits: Record<string, number | null> = {};
+  for (const [seasonKey, seasonData] of Object.entries(contentData.items)) {
+    if (seasonData.current?.episodeId) {
+      const match = seasonData.current.episodeId.match(/episode-(\d+)/);
+      const epNum = match ? parseInt(match[1], 10) : null;
+      limits[seasonKey] = epNum && epNum > 1 ? epNum - 1 : null;
+    } else {
+      limits[seasonKey] = null;
+    }
+  }
+  return limits;
+}
+
 export default function TwinPeaksPage({
   contentData,
   error,
 }: TwinPeaksPageProps) {
-
   const {
-    frames,
+    frames: allFrames,
     isLoading,
     error: framesError,
     selectedSeason,
@@ -29,6 +44,15 @@ export default function TwinPeaksPage({
     hasMoreFrames,
   } = useFrames({
     autoLoad: true,
+  });
+
+  const EPISODE_LIMITS = getEpisodeLimitsFromContent(contentData);
+  const frames = allFrames.filter(f => {
+    const seasonLimit = EPISODE_LIMITS[f.seasonKey];
+    if (!seasonLimit) return true;
+    const match = f.episodeId.match(/episode-(\d+)/);
+    const epNum = match ? parseInt(match[1], 10) : null;
+    return epNum !== null && epNum <= seasonLimit;
   });
 
   useEffect(() => {
@@ -79,9 +103,15 @@ export default function TwinPeaksPage({
   const selectedSeasonData = selectedSeason
     ? contentData.items[selectedSeason]
     : null;
-  const episodes = selectedSeasonData
-    ? Object.entries(selectedSeasonData.episodes || {})
-    : [];
+  let episodes: [string, any][] = [];
+  if (selectedSeasonData) {
+    episodes = Object.entries(selectedSeasonData.episodes || {})
+      .sort((a, b) => {
+        const numA = a[1]?.episodeNumber ?? parseInt(a[0].replace('episode-', '')) ?? 0;
+        const numB = b[1]?.episodeNumber ?? parseInt(b[0].replace('episode-', '')) ?? 0;
+        return numA - numB;
+      });
+  }
   
   const hasEpisodesInSeason = selectedSeasonData && episodes.length > 0;
 
@@ -224,7 +254,11 @@ export default function TwinPeaksPage({
           onLoadMore={loadMoreFrames}
         />
 
-        {!isLoading && !displayError && frames.length === 0 && (
+        {isLoading ? (
+          <div className="flex flex-col items-center justify-center py-16 space-y-4">
+            <LoadingSpinner />
+          </div>
+        ) : !displayError && frames.length === 0 && (
           <div className="flex flex-col items-center justify-center py-16 space-y-4">
             <div className="text-6xl opacity-40">🎬</div>
             <div className="text-center">
