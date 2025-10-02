@@ -155,9 +155,6 @@ export default function TwinPeaksPage({
               <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">
                 🎬 Twin Peaks
               </h1>
-              <div className="text-sm text-zinc-500 dark:text-zinc-400">
-                {frames.length.toLocaleString()} frames total
-              </div>
             </div>
             <div className="flex items-center space-x-4">
               <ThemeToggle />
