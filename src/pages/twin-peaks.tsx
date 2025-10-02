@@ -1,6 +1,6 @@
 import { GetServerSideProps } from "next";
 import Head from "next/head";
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import { Button } from "../components/ui/button";
 import { ThemeToggle } from "../components/ThemeToggle";
 import FrameViewer from "../components/FrameViewer";
@@ -48,38 +48,99 @@ export default function TwinPeaksPage({
     autoLoad: true,
   });
 
-  const EPISODE_LIMITS = getEpisodeLimitsFromContent(contentData);
+  const EPISODE_LIMITS = useMemo(() => getEpisodeLimitsFromContent(contentData), [contentData]);
   
-  const frames = allFrames.filter(f => {
-    const seasonLimit = EPISODE_LIMITS[f.seasonKey];
-    
-    if (seasonLimit !== null && seasonLimit !== undefined && typeof seasonLimit === 'number') {
-      const match = f.episodeId.match(/episode-(\d+)/);
-      const epNum = match ? parseInt(match[1], 10) : null;
+  const frames = useMemo(() => {
+    return allFrames.filter(f => {
+      const seasonLimit = EPISODE_LIMITS[f.seasonKey];
       
-      if (epNum === null) {
-        return false;
+      if (typeof seasonLimit === 'number') {
+        const match = f.episodeId.match(/episode-(\d+)/);
+        const epNum = match ? parseInt(match[1], 10) : null;
+        return epNum !== null && epNum <= seasonLimit;
       }
       
-      return epNum <= seasonLimit;
-    }
-    
-    return true;
-  });
+      return true;
+    });
+  }, [allFrames, EPISODE_LIMITS]);
+
+  const getLastEpisodeOfSeason = useMemo(() => {
+    return (seasonData: any) => {
+      if (!seasonData?.episodes) return null;
+      
+      const episodes = Object.entries(seasonData.episodes)
+        .sort((a, b) => {
+          const episodeA = a[1] as any;
+          const episodeB = b[1] as any;
+          const numA = episodeA?.episodeNumber ?? parseInt(a[0].replace('episode-', '')) ?? 0;
+          const numB = episodeB?.episodeNumber ?? parseInt(b[0].replace('episode-', '')) ?? 0;
+          return numA - numB;
+        });
+      
+      return episodes.length > 0 ? episodes[episodes.length - 1][0] : null;
+    };
+  }, []);
 
   useEffect(() => {
-    if (
-      contentData?.current !== undefined &&
-      !selectedSeason &&
-      !selectedEpisode
-    ) {
-      const currentSeasonKey = contentData.order[contentData.current];
-      const currentSeason = contentData.items[currentSeasonKey];
-      if (currentSeason?.current?.episodeId) {
-        setFilters(currentSeasonKey, currentSeason.current.episodeId);
+    if (!contentData || contentData.current === undefined || selectedSeason || selectedEpisode) return;
+
+    const currentSeasonKey = contentData.order[contentData.current];
+    const currentSeason = contentData.items[currentSeasonKey];
+    const currentEpisodeId = currentSeason?.current?.episodeId;
+    
+    if (!currentEpisodeId) return;
+
+    const seasonLimit = EPISODE_LIMITS[currentSeasonKey];
+    let targetSeasonKey = currentSeasonKey;
+    let targetEpisodeId = currentEpisodeId;
+
+    if (seasonLimit === 1) {
+      const currentSeasonIndex = contentData.order.indexOf(currentSeasonKey);
+      if (currentSeasonIndex > 0) {
+        const previousSeasonKey = contentData.order[currentSeasonIndex - 1];
+        const previousSeason = contentData.items[previousSeasonKey];
+        const lastEpisode = getLastEpisodeOfSeason(previousSeason);
+        
+        if (lastEpisode) {
+          targetSeasonKey = previousSeasonKey;
+          targetEpisodeId = lastEpisode;
+        }
       }
+    } else if (typeof seasonLimit === 'number' && seasonLimit > 1) {
+      targetEpisodeId = `episode-${seasonLimit}`;
     }
-  }, [contentData, selectedSeason, selectedEpisode, setFilters]);
+
+    setFilters(targetSeasonKey, targetEpisodeId);
+  }, [contentData, selectedSeason, selectedEpisode, setFilters, EPISODE_LIMITS, getLastEpisodeOfSeason]);
+
+  const sortEpisodes = useMemo(() => {
+    return (episodes: Record<string, any>) => {
+      return Object.entries(episodes).sort((a, b) => {
+        const episodeA = a[1] as any;
+        const episodeB = b[1] as any;
+        const numA = episodeA?.episodeNumber ?? parseInt(a[0].replace('episode-', '')) ?? 0;
+        const numB = episodeB?.episodeNumber ?? parseInt(b[0].replace('episode-', '')) ?? 0;
+        return numA - numB;
+      });
+    };
+  }, []);
+
+  const selectedSeasonData = selectedSeason ? contentData?.items[selectedSeason] : null;
+  const episodes = useMemo(() => {
+    return selectedSeasonData?.episodes ? sortEpisodes(selectedSeasonData.episodes) : [];
+  }, [selectedSeasonData, sortEpisodes]);
+
+  const hasEpisodesInSeason = selectedSeasonData && episodes.length > 0;
+
+  const emptyStateMessage = useMemo(() => {
+    if (selectedSeason && !hasEpisodesInSeason) {
+      return `No episodes found for ${selectedSeason.replace('season-', 'Season ')}`;
+    }
+    if (selectedEpisode && !frames.length && !isLoading) {
+      return `No frames found for the selected episode`;
+    }
+    return "Searching for frames...";
+  }, [selectedSeason, hasEpisodesInSeason, selectedEpisode, frames.length, isLoading]);
 
   const handleFilterChange = (season: string, episode: string) => {
     setFilters(season, episode);
@@ -111,31 +172,6 @@ export default function TwinPeaksPage({
   const seasons: [string, typeof contentData.items[string]][] = contentData.order
     .map((seasonId: string) => [seasonId, contentData.items[seasonId]] as [string, typeof contentData.items[string]])
     .filter(([season]) => !!season);
-
-  const selectedSeasonData = selectedSeason
-    ? contentData.items[selectedSeason]
-    : null;
-  let episodes: [string, any][] = [];
-  if (selectedSeasonData) {
-    episodes = Object.entries(selectedSeasonData.episodes || {})
-      .sort((a, b) => {
-        const numA = a[1]?.episodeNumber ?? parseInt(a[0].replace('episode-', '')) ?? 0;
-        const numB = b[1]?.episodeNumber ?? parseInt(b[0].replace('episode-', '')) ?? 0;
-        return numA - numB;
-      });
-  }
-  
-  const hasEpisodesInSeason = selectedSeasonData && episodes.length > 0;
-
-  const getEmptyStateMessage = () => {
-    if (selectedSeason && !hasEpisodesInSeason) {
-      return `No episodes found for ${selectedSeason.replace('season-', 'Season ')}`;
-    }
-    if (selectedEpisode && !frames.length && !isLoading) {
-      return `No frames found for the selected episode`;
-    }
-    return "Searching for frames...";
-  };
 
   const displayError = framesError || error;
 
@@ -272,7 +308,7 @@ export default function TwinPeaksPage({
             <div className="text-6xl opacity-40">🎬</div>
             <div className="text-center">
               <h3 className="text-xl font-semibold text-zinc-800 dark:text-zinc-200 mb-2">
-                {getEmptyStateMessage()}
+                {emptyStateMessage}
               </h3>
               {selectedSeason && !hasEpisodesInSeason ? (
                 <p className="text-sm text-zinc-600 dark:text-zinc-400 mb-4">
