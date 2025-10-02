@@ -16,6 +16,7 @@ interface TwinPeaksPageProps {
 function getEpisodeLimitsFromContent(contentData: ContentData | null) {
   if (!contentData) return {};
   const limits: Record<string, number | null> = {};
+  
   for (const [seasonKey, seasonData] of Object.entries(contentData.items)) {
     if (seasonData.current?.episodeId) {
       const match = seasonData.current.episodeId.match(/episode-(\d+)/);
@@ -25,6 +26,7 @@ function getEpisodeLimitsFromContent(contentData: ContentData | null) {
       limits[seasonKey] = null;
     }
   }
+  
   return limits;
 }
 
@@ -47,12 +49,22 @@ export default function TwinPeaksPage({
   });
 
   const EPISODE_LIMITS = getEpisodeLimitsFromContent(contentData);
+  
   const frames = allFrames.filter(f => {
     const seasonLimit = EPISODE_LIMITS[f.seasonKey];
-    if (!seasonLimit) return true;
-    const match = f.episodeId.match(/episode-(\d+)/);
-    const epNum = match ? parseInt(match[1], 10) : null;
-    return epNum !== null && epNum <= seasonLimit;
+    
+    if (seasonLimit !== null && seasonLimit !== undefined && typeof seasonLimit === 'number') {
+      const match = f.episodeId.match(/episode-(\d+)/);
+      const epNum = match ? parseInt(match[1], 10) : null;
+      
+      if (epNum === null) {
+        return false;
+      }
+      
+      return epNum <= seasonLimit;
+    }
+    
+    return true;
   });
 
   useEffect(() => {
