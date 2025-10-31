@@ -1,11 +1,12 @@
 import admin from 'firebase-admin';
+import { logger } from './logger';
 
 let firebaseApp: admin.app.App | null = null;
 
 export function initializeFirebaseAdmin(): admin.app.App {
   if (admin.apps.length > 0) {
     firebaseApp = admin.apps[0] as admin.app.App;
-    console.log('✅ Using existing Firebase Admin app');
+    logger.debug('Using existing Firebase Admin app');
     return firebaseApp;
   }
 
@@ -19,22 +20,22 @@ export function initializeFirebaseAdmin(): admin.app.App {
 
   try {
     const serviceAccountJSON = Buffer.from(
-      process.env.FIREBASE_SERVICE_ACCOUNT_BASE64, 
+      process.env.FIREBASE_SERVICE_ACCOUNT_BASE64,
       'base64'
     ).toString('utf-8');
-    
+
     const serviceAccount = JSON.parse(serviceAccountJSON);
-    
+
     firebaseApp = admin.initializeApp({
       credential: admin.credential.cert(serviceAccount),
       projectId: serviceAccount.project_id
     });
 
-    console.log('Firebase Admin initialized successfully');
+    logger.info('Firebase Admin initialized successfully');
     return firebaseApp;
-    
+
   } catch (error) {
-    console.error('Failed to initialize Firebase Admin:', error);
+    logger.error('Failed to initialize Firebase Admin', { error });
     throw new Error('Failed to initialize Firebase Admin');
   }
 }

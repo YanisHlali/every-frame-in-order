@@ -21,8 +21,56 @@ interface UseFramesReturn {
   hasMoreFrames: boolean;
 }
 
-const framesCache = new Map<string, { data: FramesApiResponse; timestamp: number }>();
+class LRUCache<K, V> {
+  private maxSize: number;
+  private cache: Map<K, V>;
+
+  constructor(maxSize: number) {
+    this.maxSize = maxSize;
+    this.cache = new Map();
+  }
+
+  get(key: K): V | undefined {
+    if (!this.cache.has(key)) return undefined;
+    const value = this.cache.get(key)!;
+    this.cache.delete(key);
+    this.cache.set(key, value);
+    return value;
+  }
+
+  set(key: K, value: V): void {
+    if (this.cache.has(key)) {
+      this.cache.delete(key);
+    }
+    this.cache.set(key, value);
+    if (this.cache.size > this.maxSize) {
+      const firstKey = this.cache.keys().next().value;
+      if (firstKey !== undefined) {
+        this.cache.delete(firstKey);
+      }
+    }
+  }
+
+  has(key: K): boolean {
+    return this.cache.has(key);
+  }
+
+  delete(key: K): boolean {
+    return this.cache.delete(key);
+  }
+
+  clear(): void {
+    this.cache.clear();
+  }
+
+  get size(): number {
+    return this.cache.size;
+  }
+}
+
 const CACHE_DURATION = 5 * 60 * 1000;
+const MAX_CACHE_SIZE = 50; // Limit cache to 50 entries
+const framesCache = new LRUCache<string, { data: FramesApiResponse; timestamp: number }>(MAX_CACHE_SIZE);
 
 function getCacheKey(season?: string, episode?: string, page = 1) {
   return `${season || 'all'}-${episode || 'all'}-page-${page}`;
@@ -31,16 +79,16 @@ function getCacheKey(season?: string, episode?: string, page = 1) {
 function getCachedData(key: string): FramesApiResponse | null {
   const cached = framesCache.get(key);
   if (!cached) return null;
-  
+
   if (Date.now() - cached.timestamp > CACHE_DURATION) {
     framesCache.delete(key);
     return null;
   }
-  
+
   return cached.data;
 }
 
-function setCachedData(key: string, data: FramesApiResponse) {
+function setCachedData(key: string, data: FramesApiResponse): void {
   framesCache.set(key, { data, timestamp: Date.now() });
 }
 
@@ -69,9 +117,8 @@ export function useFrames({
   ) => {
     const cacheKey = getCacheKey(season, episode, page);
     const cachedData = getCachedData(cacheKey);
-    
+
     if (cachedData && cachedData.success) {
-      console.log('Using cached data for:', cacheKey);
       if (append) {
         setFrames(prev => [...prev, ...cachedData.frames]);
       } else {
@@ -135,8 +182,7 @@ export function useFrames({
       if (typeof err === 'object' && err !== null && 'name' in err && (err as { name?: string }).name === 'AbortError') {
         return;
       }
-      
-      console.error('Error loading frames:', err);
+
       setError(err instanceof Error ? err.message : 'Unknown error occurred');
       if (!append) {
         setFrames([]);
@@ -180,10 +226,11 @@ export function useFrames({
   }, [initialFrames]);
 
   useEffect(() => {
-    if (autoLoad && frames.length === 0) {
+    if (autoLoad && frames.length === 0 && !isLoading) {
       loadFrames();
     }
-  }, [autoLoad, loadFrames, frames.length]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoLoad]);
 
   useEffect(() => {
     return () => {

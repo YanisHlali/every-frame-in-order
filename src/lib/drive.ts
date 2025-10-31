@@ -1,9 +1,10 @@
-import { google } from 'googleapis';
+import { google, drive_v3 } from 'googleapis';
 import { DriveFile } from '../types';
+import { logger } from './logger';
 
-let driveClient: any = null;
+let driveClient: drive_v3.Drive | null = null;
 
-export function initializeGoogleDrive() {
+export function initializeGoogleDrive(): drive_v3.Drive {
   if (driveClient) {
     return driveClient;
   }
@@ -23,12 +24,12 @@ export function initializeGoogleDrive() {
     });
 
     driveClient = google.drive({ version: 'v3', auth });
-    console.log('Google Drive API initialized successfully');
-    
+    logger.info('Google Drive API initialized successfully');
+
     return driveClient;
-    
+
   } catch (error) {
-    console.error('Failed to initialize Google Drive API:', error);
+    logger.error('Failed to initialize Google Drive API', { error });
     throw new Error('Failed to initialize Google Drive API');
   }
 }
@@ -56,9 +57,9 @@ export async function getFilesFromFolder(folderId: string): Promise<DriveFile[]>
     } while (pageToken);
 
     return allFiles;
-    
+
   } catch (error) {
-    console.error(`Error fetching files from folder ${folderId}:`, error);
+    logger.error('Error fetching files from folder', { folderId, error });
     throw error;
   }
 }
@@ -78,9 +79,9 @@ export async function getFileStream(fileId: string) {
       data: Buffer.from(response.data as ArrayBuffer),
       mimeType: response.headers['content-type'] || 'image/png'
     };
-    
+
   } catch (error) {
-    console.error(`Error getting file stream for ${fileId}:`, error);
+    logger.error('Error getting file stream', { fileId, error });
     throw error;
   }
 }

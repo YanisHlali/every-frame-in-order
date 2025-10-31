@@ -73,6 +73,8 @@ export default function FrameViewer({
       }
     }
 
+    const imageElements: HTMLImageElement[] = [];
+
     preloadImages.forEach((frame) => {
       if (!loadedImages.has(frame.id) && typeof window !== "undefined") {
         const img = new window.Image();
@@ -80,8 +82,17 @@ export default function FrameViewer({
         img.onload = () => {
           setLoadedImages((prev) => new Set(prev).add(frame.id));
         };
+        imageElements.push(img);
       }
     });
+
+    return () => {
+      imageElements.forEach((img) => {
+        img.onload = null;
+        img.onerror = null;
+        img.src = '';
+      });
+    };
   }, [currentIndex, frames, loadedImages]);
 
   useEffect(() => {
@@ -117,28 +128,40 @@ export default function FrameViewer({
   const handleFrameInputSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const frameNumber = parseInt(frameInput);
-    if (!isNaN(frameNumber) && frameNumber > 0) {
-      const success = goToFrame(frameNumber);
-      if (!success) {
-        const sortedFrames = [...frames].sort(
-          (a, b) => a.frameNumber - b.frameNumber
-        );
-        let closestIndex = 0;
-        let minDiff = Math.abs(sortedFrames[0].frameNumber - frameNumber);
 
-        for (let i = 1; i < sortedFrames.length; i++) {
-          const diff = Math.abs(sortedFrames[i].frameNumber - frameNumber);
-          if (diff < minDiff) {
-            minDiff = diff;
-            closestIndex = i;
-          }
+    if (isNaN(frameNumber) || frameNumber <= 0) {
+      return;
+    }
+
+    const maxFrameNumber = frames.length > 0
+      ? Math.max(...frames.map(f => f.frameNumber))
+      : 0;
+
+    const cappedFrameNumber = Math.min(frameNumber, maxFrameNumber + 1000);
+
+    const success = goToFrame(cappedFrameNumber);
+    if (!success) {
+      const sortedFrames = [...frames].sort(
+        (a, b) => a.frameNumber - b.frameNumber
+      );
+
+      if (sortedFrames.length === 0) return;
+
+      let closestIndex = 0;
+      let minDiff = Math.abs(sortedFrames[0].frameNumber - cappedFrameNumber);
+
+      for (let i = 1; i < sortedFrames.length; i++) {
+        const diff = Math.abs(sortedFrames[i].frameNumber - cappedFrameNumber);
+        if (diff < minDiff) {
+          minDiff = diff;
+          closestIndex = i;
         }
-
-        const closestFrame = sortedFrames[closestIndex];
-        const actualIndex = frames.findIndex((f) => f.id === closestFrame.id);
-        setCurrentIndex(actualIndex);
-        setFrameInput(closestFrame.frameNumber.toString());
       }
+
+      const closestFrame = sortedFrames[closestIndex];
+      const actualIndex = frames.findIndex((f) => f.id === closestFrame.id);
+      setCurrentIndex(actualIndex);
+      setFrameInput(closestFrame.frameNumber.toString());
     }
   };
 
@@ -156,7 +179,7 @@ export default function FrameViewer({
                     <>
                       <Image
                         src={`/api/image-proxy?url=${encodeURIComponent(currentFrame.url)}`}
-                        alt={`Frame ${currentFrame.frameNumber}`}
+                        alt={`Frame ${currentFrame.frameNumber} from ${currentFrame.seasonKey.replace('season-', 'Season ')} ${currentFrame.episodeId.replace('episode-', 'Episode ')}`}
                         className={`w-full h-full object-contain transition-all duration-500 hover:brightness-105 ${
                           isZoomed
                             ? "scale-150 cursor-zoom-out z-20"
@@ -166,8 +189,17 @@ export default function FrameViewer({
                         width={1280}
                         height={720}
                         onClick={() => setIsZoomed(!isZoomed)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault();
+                            setIsZoomed(!isZoomed);
+                          }
+                        }}
                         onLoad={() => handleImageLoad(currentFrame.id)}
                         onError={() => handleImageError(currentFrame.id)}
+                        tabIndex={0}
+                        role="button"
+                        aria-label={isZoomed ? 'Zoom out' : 'Zoom in'}
                       />
                       {!loadedImages.has(currentFrame.id) && (
                         <div className="pointer-events-none absolute inset-0 flex items-center justify-center z-10 bg-white/80 dark:bg-zinc-900/80 backdrop-blur-sm">
@@ -219,28 +251,34 @@ export default function FrameViewer({
                         onClick={() => navigateFrame("prev")}
                         disabled={currentIndex === 0}
                         className="px-4 py-2 text-sm font-medium transition-all duration-200 disabled:opacity-50"
+                        aria-label="Go to previous frame"
                       >
                         ← Previous
                       </Button>
 
-                      <div className="flex items-center gap-2 bg-white dark:bg-zinc-800 rounded-lg px-3 py-2">
-                        <span className="text-sm font-medium text-zinc-600 dark:text-zinc-300">
+                      <div className="flex items-center gap-2 bg-white dark:bg-zinc-800 rounded-lg px-3 py-2" role="navigation" aria-label="Frame navigation">
+                        <label htmlFor="frame-input" className="text-sm font-medium text-zinc-600 dark:text-zinc-300">
                           Frame:
-                        </span>
+                        </label>
                         <form
                           onSubmit={handleFrameInputSubmit}
                           className="flex items-center"
+                          aria-label="Jump to specific frame"
                         >
                           <input
+                            id="frame-input"
                             type="number"
                             value={frameInput}
                             onChange={(e) => setFrameInput(e.target.value)}
-                            className="w-24 px-3 py-1.5 text-sm font-mono rounded-md bg-white dark:bg-zinc-700 text-zinc-900 dark:text-zinc-100 transition-all duration-200 outline-none focus:outline-none"
+                            className="w-24 px-3 py-1.5 text-sm font-mono rounded-md bg-white dark:bg-zinc-700 text-zinc-900 dark:text-zinc-100 transition-all duration-200 outline-none focus:outline-none focus:ring-2 focus:ring-blue-500"
                             min="1"
+                            max={frames.length > 0 ? Math.max(...frames.map(f => f.frameNumber)) + 1000 : undefined}
                             placeholder="#"
+                            aria-label="Jump to frame number"
+                            aria-describedby="frame-count"
                           />
                         </form>
-                        <span className="text-sm text-zinc-500 dark:text-zinc-400 font-mono">
+                        <span id="frame-count" className="text-sm text-zinc-500 dark:text-zinc-400 font-mono">
                           / {frames.length.toLocaleString()}
                         </span>
                       </div>
@@ -252,6 +290,7 @@ export default function FrameViewer({
                           currentIndex === frames.length - 1 && !hasMoreFrames
                         }
                         className="px-4 py-2 text-sm font-medium transition-all duration-200 disabled:opacity-50"
+                        aria-label="Go to next frame"
                       >
                         Next →
                       </Button>

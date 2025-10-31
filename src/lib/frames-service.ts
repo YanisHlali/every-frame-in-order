@@ -2,6 +2,8 @@ import admin from 'firebase-admin';
 import { getFirestore, getContentId } from './firebase';
 import { getFilesFromFolder, getImageUrl } from './drive';
 import { handleApiError } from './error-utils';
+import { logger } from './logger';
+import { retryIfRetryable } from './retry';
 import { Frame, Pagination, ContentData, FramesApiResponse } from '../types';
 
 export interface FramesServiceOptions {
@@ -70,14 +72,21 @@ export class FramesService {
 
           const folderPromises = episodeData.folderIds.map(async (folderId: string, folderIndex: number) => {
             try {
-              const files = await getFilesFromFolder(folderId);
-              
+              const files = await retryIfRetryable(
+                () => getFilesFromFolder(folderId),
+                {
+                  maxAttempts: 3,
+                  delayMs: 1000,
+                  backoffMultiplier: 2
+                }
+              );
+
               return files.map((file, fileIndex) => {
                 if (!file.id || !file.name) return null;
-                
+
                 const frameMatch = file.name.match(/frame_(\d+)/);
-                const frameNumber = frameMatch ? 
-                  parseInt(frameMatch[1]) : 
+                const frameNumber = frameMatch ?
+                  parseInt(frameMatch[1]) :
                   (folderIndex * 100) + fileIndex + 1;
 
                 const imageUrl = getImageUrl(file.id);
@@ -93,7 +102,7 @@ export class FramesService {
                 };
               }).filter(frame => frame !== null);
             } catch (driveError) {
-              console.error(`Error fetching folder ${folderId}:`, driveError);
+              logger.error('Error fetching folder after retries', { folderId, error: driveError });
               return [];
             }
           });

@@ -6,7 +6,7 @@ import { ThemeToggle } from "../components/ThemeToggle";
 import FrameViewer from "../components/FrameViewer";
 import { useFrames } from "../hooks/useFrames";
 import LoadingSpinner from "../components/LoadingSpinner";
-import { ContentData } from "../types";
+import { ContentData, Episode } from "../types";
 
 interface TwinPeaksPageProps {
   contentData: ContentData | null;
@@ -16,7 +16,7 @@ interface TwinPeaksPageProps {
 function getEpisodeLimitsFromContent(contentData: ContentData | null) {
   if (!contentData) return {};
   const limits: Record<string, number | null> = {};
-  
+
   for (const [seasonKey, seasonData] of Object.entries(contentData.items)) {
     if (seasonData.current?.episodeId) {
       const match = seasonData.current.episodeId.match(/episode-(\d+)/);
@@ -26,8 +26,33 @@ function getEpisodeLimitsFromContent(contentData: ContentData | null) {
       limits[seasonKey] = null;
     }
   }
-  
+
   return limits;
+}
+
+function getLastEpisodeOfSeason(seasonData: ContentData['items'][string]): string | null {
+  if (!seasonData?.episodes) return null;
+
+  const episodes = Object.entries(seasonData.episodes)
+    .sort((a, b) => {
+      const episodeA = a[1];
+      const episodeB = b[1];
+      const numA = episodeA?.episodeNumber ?? parseInt(a[0].replace('episode-', ''), 10) ?? 0;
+      const numB = episodeB?.episodeNumber ?? parseInt(b[0].replace('episode-', ''), 10) ?? 0;
+      return numA - numB;
+    });
+
+  return episodes.length > 0 ? episodes[episodes.length - 1][0] : null;
+}
+
+function sortEpisodes(episodes: Record<string, Episode>): [string, Episode][] {
+  return Object.entries(episodes).sort((a, b) => {
+    const episodeA = a[1];
+    const episodeB = b[1];
+    const numA = episodeA?.episodeNumber ?? parseInt(a[0].replace('episode-', ''), 10) ?? 0;
+    const numB = episodeB?.episodeNumber ?? parseInt(b[0].replace('episode-', ''), 10) ?? 0;
+    return numA - numB;
+  });
 }
 
 export default function TwinPeaksPage({
@@ -64,30 +89,13 @@ export default function TwinPeaksPage({
     });
   }, [allFrames, EPISODE_LIMITS]);
 
-  const getLastEpisodeOfSeason = useMemo(() => {
-    return (seasonData: any) => {
-      if (!seasonData?.episodes) return null;
-      
-      const episodes = Object.entries(seasonData.episodes)
-        .sort((a, b) => {
-          const episodeA = a[1] as any;
-          const episodeB = b[1] as any;
-          const numA = episodeA?.episodeNumber ?? parseInt(a[0].replace('episode-', '')) ?? 0;
-          const numB = episodeB?.episodeNumber ?? parseInt(b[0].replace('episode-', '')) ?? 0;
-          return numA - numB;
-        });
-      
-      return episodes.length > 0 ? episodes[episodes.length - 1][0] : null;
-    };
-  }, []);
-
   useEffect(() => {
     if (!contentData || contentData.current === undefined || selectedSeason || selectedEpisode) return;
 
     const currentSeasonKey = contentData.order[contentData.current];
     const currentSeason = contentData.items[currentSeasonKey];
     const currentEpisodeId = currentSeason?.current?.episodeId;
-    
+
     if (!currentEpisodeId) return;
 
     const seasonLimit = EPISODE_LIMITS[currentSeasonKey];
@@ -100,7 +108,7 @@ export default function TwinPeaksPage({
         const previousSeasonKey = contentData.order[currentSeasonIndex - 1];
         const previousSeason = contentData.items[previousSeasonKey];
         const lastEpisode = getLastEpisodeOfSeason(previousSeason);
-        
+
         if (lastEpisode) {
           targetSeasonKey = previousSeasonKey;
           targetEpisodeId = lastEpisode;
@@ -111,19 +119,7 @@ export default function TwinPeaksPage({
     }
 
     setFilters(targetSeasonKey, targetEpisodeId);
-  }, [contentData, selectedSeason, selectedEpisode, setFilters, EPISODE_LIMITS, getLastEpisodeOfSeason]);
-
-  const sortEpisodes = useMemo(() => {
-    return (episodes: Record<string, any>) => {
-      return Object.entries(episodes).sort((a, b) => {
-        const episodeA = a[1] as any;
-        const episodeB = b[1] as any;
-        const numA = episodeA?.episodeNumber ?? parseInt(a[0].replace('episode-', '')) ?? 0;
-        const numB = episodeB?.episodeNumber ?? parseInt(b[0].replace('episode-', '')) ?? 0;
-        return numA - numB;
-      });
-    };
-  }, []);
+  }, [contentData, selectedSeason, selectedEpisode, setFilters, EPISODE_LIMITS]);
 
   const selectedSeasonData = selectedSeason ? contentData?.items[selectedSeason] : null;
   const episodes = useMemo(() => {
@@ -361,17 +357,6 @@ export const getServerSideProps: GetServerSideProps = async () => {
 
     const contentData = contentDoc.data() as ContentData | undefined;
 
-    let totalFrames = 0;
-    if (contentData?.items) {
-      Object.values(contentData.items).forEach((season: any) => {
-        if (season.episodes) {
-          Object.values(season.episodes).forEach((episode: any) => {
-            totalFrames += episode.totalFiles || 0;
-          });
-        }
-      });
-    }
-
     return {
       props: {
         contentData: {
@@ -383,8 +368,6 @@ export const getServerSideProps: GetServerSideProps = async () => {
       },
     };
   } catch (error) {
-    console.error("Error in getServerSideProps:", error);
-
     return {
       props: {
         contentData: null,
