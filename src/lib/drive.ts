@@ -36,7 +36,7 @@ export function initializeGoogleDrive(): drive_v3.Drive {
 
 export async function getFilesFromFolder(folderId: string): Promise<DriveFile[]> {
   const drive = initializeGoogleDrive();
-  
+
   try {
     let allFiles: DriveFile[] = [];
     let pageToken: string | undefined;
@@ -51,8 +51,22 @@ export async function getFilesFromFolder(folderId: string): Promise<DriveFile[]>
       });
 
       const files = response.data.files || [];
-      allFiles = allFiles.concat(files);
-      pageToken = response.data.nextPageToken;
+
+      const mappedFiles: DriveFile[] = files
+        .filter((file): file is drive_v3.Schema$File & { id: string; name: string } => {
+          return !!(file.id && file.name);
+        })
+        .map((file) => ({
+          id: file.id,
+          name: file.name,
+          webViewLink: file.webViewLink || undefined,
+          webContentLink: file.webContentLink || undefined,
+          thumbnailLink: file.thumbnailLink || undefined,
+          mimeType: file.mimeType || undefined
+        }));
+
+      allFiles = allFiles.concat(mappedFiles);
+      pageToken = response.data.nextPageToken || undefined;
 
     } while (pageToken);
 
